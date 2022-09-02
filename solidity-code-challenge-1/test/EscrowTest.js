@@ -119,17 +119,17 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
 
     describe("Release", function () {
         it("cannot release if no deposit", async function () {
-            await expect(contract.release()).to.be.revertedWith(constants.errorMessages.NOT_FOUND);
+            await expect(contract.release()).to.be.revertedWith(constants.errorMessages.DEPOSIT_NOT_FOUND);
         });
 
         it("payer cannot release", async function () {
             await contract.depositFor(receiver.address, releaser.address, { value: 1 }); 
-            await expect(contract.release()).to.be.revertedWith(constants.errorMessages.NOT_FOUND);
+            await expect(contract.release()).to.be.revertedWith(constants.errorMessages.DEPOSIT_NOT_FOUND);
         });
 
         it("receiver cannot release", async function () {
             await contract.depositFor(receiver.address, releaser.address, { value: 1 });
-            await expect(contract.connect(receiver).release()).to.be.revertedWith(constants.errorMessages.NOT_FOUND);
+            await expect(contract.connect(receiver).release()).to.be.revertedWith(constants.errorMessages.DEPOSIT_NOT_FOUND);
         });
 
         it("releaser can release", async function () {
