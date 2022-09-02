@@ -16,8 +16,15 @@ contract Escrow is ReentrancyGuard {
     
     mapping(address => Deposit[]) deposits;
     
-    //TODO: comments 
     
+    /**
+     * @dev Deposits ether and creates a deposit record. If an identical unpaid 
+     * deposit already exists, adds balance to that record. 
+     * 
+     * @param receiver who will receive the deposit when released
+     * @param releaser who can release the deposit to the receiver (must be different from
+     * both payer and receiver)
+     */
     function depositFor(address receiver, address releaser) external payable {
         address payer = msg.sender; 
         
@@ -43,6 +50,13 @@ contract Escrow is ReentrancyGuard {
         }
     }
     
+    /**
+     * @dev Releases an escrow deposit to the authorized receiver, if found. Releases 
+     * the most recent deposit which has the sender as the releaser.
+     * 
+     * Throws if deposit record not found. 
+     * Throws if failed to send payment. 
+     */
     function release() nonReentrant external {
         address releaser = msg.sender;
         (uint index, bool found) = getLastUnpaidDepositIndex(releaser);
@@ -50,16 +64,22 @@ contract Escrow is ReentrancyGuard {
         //checks: make sure entry exists 
         require(found, "Escrow deposit not found"); 
         
-        Deposit storage dep = deposits[releaser][index]; 
+        Deposit memory dep = deposits[releaser][index]; 
         
         //effects: remove the entry
         deposits[releaser].pop();
         
         //interactions: send the ether to receiver 
         (bool sent,) = dep.receiver.call{value:dep.amount}("");
-        require(sent); 
+        require(sent, "Failed to send payment"); 
     }
     
+    /**
+     * @dev Finds and returns an existing deposit record with the given payer, 
+     * receiver, and releaser. 
+     * 
+     * @return deposit The deposit record, or a default record if not found.
+     */
     function getDeposit(address payer, address receiver, address releaser) external view returns (Deposit memory deposit) {
         (uint index, bool found) = getDepositIndex(releaser, payer, receiver);
         if (found) {
@@ -68,6 +88,9 @@ contract Escrow is ReentrancyGuard {
         
         return deposit;
     }
+    
+    
+    //NON-PUBLIC METHODS 
     
     function getLastUnpaidDepositIndex(address releaser) internal view returns (uint256, bool) {
         Deposit[] storage depArray = deposits[releaser]; 
