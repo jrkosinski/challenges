@@ -6,6 +6,18 @@ const testEvent = require("./util/testEvent");
 
 const provider = ethers.provider;
 
+function hashDepositId(payer, receiver, releaser) {
+    return ethers.utils.solidityKeccak256([
+        "address",
+        "address",
+        "address",
+    ], [
+        payer.address, 
+        receiver.address,
+        releaser.address
+    ])
+}
+
 describe(constants.CONTRACT_NAME + ": Test", function () {		  
 	let contract;				                    //contracts
 	let payer, receiver, releaser, addr4, addr5; 	//accounts
@@ -126,22 +138,26 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
 
     describe("Release", function () {
         it("cannot release if no deposit", async function () {
-            await expect(contract.release()).to.be.revertedWith(constants.errorMessages.DEPOSIT_NOT_FOUND);
+            const depositId = "0x0000000000000000000000000000000000000000000000000000000000000000"; 
+            await expect(contract.release(depositId)).to.be.revertedWith(constants.errorMessages.DEPOSIT_NOT_FOUND);
         });
 
         it("payer cannot release", async function () {
             await contract.depositFor(receiver.address, releaser.address, { value: 1 }); 
-            await expect(contract.release()).to.be.revertedWith(constants.errorMessages.DEPOSIT_NOT_FOUND);
+            const depositId = hashDepositId(payer, receiver, releaser);
+            await expect(contract.release(depositId)).to.be.revertedWith(constants.errorMessages.CALLER_NOT_RELEASER);
         });
-
+        
         it("receiver cannot release", async function () {
             await contract.depositFor(receiver.address, releaser.address, { value: 1 });
-            await expect(contract.connect(receiver).release()).to.be.revertedWith(constants.errorMessages.DEPOSIT_NOT_FOUND);
+            const depositId = hashDepositId(payer, receiver, releaser);
+            await expect(contract.connect(receiver).release(depositId)).to.be.revertedWith(constants.errorMessages.CALLER_NOT_RELEASER);
         });
 
         it("releaser can release", async function () {
             await contract.depositFor(receiver.address, releaser.address, { value: 1 });
-            await expect(contract.connect(releaser).release()).to.not.be.reverted;
+            const depositId = hashDepositId(payer, receiver, releaser);
+            await expect(contract.connect(releaser).release(depositId)).to.not.be.reverted;
 
             expect(await provider.getBalance(contract.address)).to.equal(0);
         });
@@ -149,10 +165,11 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
         it("release removes the deposit", async function () {
             const amount = 100;
             await contract.depositFor(receiver.address, releaser.address, { value: amount });
-            await contract.connect(releaser).release();
+            const depositId = hashDepositId(payer, receiver, releaser);
+            await contract.connect(releaser).release(depositId);
             
             const deposit = await contract.getDeposit(payer.address, receiver.address, releaser.address);
-            expect(deposit.amount).to.equal(0); 
+            expect(deposit.paid).to.equal(true); 
             
             expect(await provider.getBalance(contract.address)).to.equal(0);
         });
@@ -161,8 +178,9 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             const unpayable = await deploy.deployUnpayable();
             
             await contract.depositFor(unpayable.address, releaser.address, { value: 1 });
+            const depositId = hashDepositId(unpayable, receiver, releaser);
             
-            await expect(contract.connect(releaser).release()).to.be.reverted;
+            await expect(contract.connect(releaser).release(depositId)).to.be.reverted;
         });
 
         it("correct amount is released", async function () {
@@ -177,9 +195,20 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             await contract.connect(payer1).depositFor(receiver.address, releaser1.address, { value: amount1 });
             await contract.connect(payer2).depositFor(receiver.address, releaser2.address, { value: amount2 });
 
-            await contract.connect(releaser2).release(); 
+            const depositId1 = hashDepositId(payer1, receiver, releaser1);
+            const depositId2 = hashDepositId(payer2, receiver, releaser2);
+
+            await contract.connect(releaser2).release(depositId2); 
             
             expect(await provider.getBalance(contract.address)).to.equal(amount1); 
+        });
+
+        it("cannot release same deposit twice", async function () {
+            await contract.depositFor(receiver.address, releaser.address, { value: 1 });
+            const depositId = hashDepositId(payer, receiver, releaser);
+
+            await expect(contract.connect(releaser).release(depositId)).to.not.be.reverted;
+            await expect(contract.connect(releaser).release(depositId)).to.be.revertedWith(constants.errorMessages.DEPOSIT_NOT_FOUND);
         });
     });
 });

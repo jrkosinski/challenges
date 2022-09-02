@@ -1,24 +1,25 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "hardhat/console.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol"; 
 
+/** 
+ * @title Escrow
+ */
 contract Escrow is ReentrancyGuard {
-    
+
     // a deposit record 
     struct Deposit {
-        bytes32 hashKey;            //hash of payer & receiver; makes it unique per releaser
-        address payer;              //address of payer of deposit
-        address payable receiver;   //address which can receive the deposit
-        address releaser;           //address which can release the deposit to receiver
-        uint256 amount;             //total amount of deposit 
+        address payer;
+        address payable receiver;
+        address releaser;
+        uint amount;
+        bool paid;
     }
-    
+
     //list of deposits per releaser 
-    mapping(address => Deposit[]) deposits;
-    
-    
+    mapping(bytes32 => Deposit) public deposits;
+
     /**
      * @dev Deposits ether and creates a deposit record. If an identical unpaid 
      * deposit already exists, adds balance to that record. 
@@ -27,99 +28,75 @@ contract Escrow is ReentrancyGuard {
      * @param releaser who can release the deposit to the receiver (must be different from
      * both payer and receiver)
      */
-    function depositFor(address receiver, address releaser) external payable {
+    function depositFor(address receiver, address releaser) external payable returns (bytes32) {
         address payer = msg.sender; 
-        
-        //releaser should be different from both payer & receiver 
-        require(releaser != receiver && releaser != payer, "Releaser must be different"); 
-        require(msg.value > 0, "Zero deposit not allowed");
-        
-        (uint256 index, bool found) = getDepositIndex(releaser, payer, receiver);
-        
-        //if identical entry already exists, add to it
-        if (found) {
-            deposits[releaser][index].amount += msg.value;
-        }
-        else { //otherwise, create new one
-            Deposit memory newDeposit; 
-            newDeposit.hashKey = keccak256(abi.encodePacked(payer, receiver));
-            newDeposit.payer = payer;
-            newDeposit.receiver = payable(receiver);
-            newDeposit.releaser = releaser; 
-            newDeposit.amount = msg.value;
-            
-            deposits[releaser].push(newDeposit);
-        }
-    }
     
+        //checks
+        require(msg.value > 0, "Zero deposit not allowed"); 
+        require(releaser != receiver && releaser != payer, "Releaser must be different"); 
+
+        //get the deposit 
+        bytes32 hash = keccak256(abi.encodePacked(payer, receiver, releaser)); 
+        Deposit storage dep = deposits[hash]; 
+
+        //if it does not exist, create it. If it's already been paid, overwrite it
+        if (dep.paid == true || dep.amount == 0) {
+            dep.amount = msg.value;
+            dep.payer = payer;
+            dep.receiver = payable(receiver); 
+            dep.releaser = releaser;
+            dep.paid = false;
+        }
+        else {
+            //if it already exists, increase its value 
+            dep.amount += msg.value;
+        }
+
+        return hash;
+    }
+
     /**
      * @dev Releases an escrow deposit to the authorized receiver, if found. Releases 
      * the most recent deposit which has the sender as the releaser.
      * 
      * Throws if deposit record not found. 
      * Throws if failed to send payment. 
+     * Throws if the caller is not the releaser.
      */
-    function release() nonReentrant external {
-        address releaser = msg.sender;
-        (uint index, bool found) = getLastUnpaidDepositIndex(releaser);
+    function release(bytes32 hash) external nonReentrant {
+        Deposit storage dep = deposits[hash];
         
-        //checks: make sure entry exists 
-        require(found, "Escrow deposit not found"); 
-        
-        Deposit memory dep = deposits[releaser][index]; 
-        
-        //effects: remove the entry
-        deposits[releaser].pop();
-        
-        //interactions: send the ether to receiver 
+        //checks 
+        require(dep.amount > 0, "Escrow deposit not found");
+        require(dep.paid == false, "Escrow deposit not found");
+        require(dep.releaser == msg.sender, "Caller must be releaser"); 
+
+        //effects
+        dep.paid = true;
+
+        //interactions
         (bool sent,) = dep.receiver.call{value:dep.amount}("");
-        require(sent, "Failed to send payment"); 
+        require(sent);
     }
-    
+
     /**
      * @dev Finds and returns an existing deposit record with the given payer, 
      * receiver, and releaser. 
      * 
      * @return deposit The deposit record, or a default record if not found.
      */
-    function getDeposit(address payer, address receiver, address releaser) external view returns (Deposit memory deposit) {
-        (uint index, bool found) = getDepositIndex(releaser, payer, receiver);
-        if (found) {
-            deposit = deposits[releaser][index]; 
-        }
-        
-        return deposit;
+    function getDeposit(address payer, address receiver, address releaser) external view returns (Deposit memory) {
+        bytes32 hash = keccak256(abi.encodePacked(payer, receiver, releaser)); 
+        return getDepositByHash(hash);
     }
-    
-    
-    //NON-PUBLIC METHODS 
-    
-    function getLastUnpaidDepositIndex(address releaser) internal view returns (uint256, bool) {
-        Deposit[] storage depArray = deposits[releaser]; 
-        uint storageIndex = 0;
-        bool exists = depArray.length > 0; 
-        if (exists) {
-            storageIndex = depArray.length-1;
-        }
-        
-        return (storageIndex, exists);
-    }
-    
-    function getDepositIndex(address releaser, address payer, address receiver) internal view returns (uint256, bool) {
-        Deposit[] storage depArray = deposits[releaser]; 
-        
-        uint storageIndex = 0;
-        bool exists = false;
-        bytes32 hashKey = keccak256(abi.encodePacked(payer, receiver));
-        
-        for(uint n=0; n<depArray.length; n++) {
-            if (hashKey == depArray[n].hashKey) {
-                storageIndex = n;
-                exists = true;
-                break;
-            }
-        }
-        
-        return (storageIndex, exists);
+
+    /**
+     * @dev Finds and returns an existing deposit record with the given hash of payer, 
+     * receiver, and releaser. 
+     * 
+     * @return deposit The deposit record, or a default record if not found.
+     */
+    function getDepositByHash(bytes32 hash) public view returns (Deposit memory) {
+        return deposits[hash]; 
     }
 }
