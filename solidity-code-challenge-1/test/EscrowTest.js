@@ -164,5 +164,22 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             
             await expect(contract.connect(releaser).release()).to.be.reverted;
         });
+
+        it("correct amount is released", async function () {
+            const amount1 = 100;
+            const amount2 = 300;
+
+            const releaser1 = releaser;
+            const releaser2 = addr4;
+            const payer1 = payer;
+            const payer2 = addr5;
+
+            await contract.connect(payer1).depositFor(receiver.address, releaser1.address, { value: amount1 });
+            await contract.connect(payer2).depositFor(receiver.address, releaser2.address, { value: amount2 });
+
+            await contract.connect(releaser2).release(); 
+            
+            expect(await provider.getBalance(contract.address)).to.equal(amount1); 
+        });
     });
 });
