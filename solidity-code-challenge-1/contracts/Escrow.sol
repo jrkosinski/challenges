@@ -13,7 +13,7 @@ contract Escrow is ReentrancyGuard {
     }
     
     //TODO: should be mapping of mappings or array 
-    mapping(address => Entry) internal entries;
+    mapping(address => Entry) public entries;
     
     //TODO: comments 
     
@@ -34,7 +34,7 @@ contract Escrow is ReentrancyGuard {
     }
     
     function release() nonReentrant external {
-        Entry memory entry = entries[msg.sender]; 
+        Entry storage entry = entries[msg.sender]; 
         
         //checks: make sure entry exists && amount is > 0
         require(entry.amount > 0); 
