@@ -84,13 +84,15 @@ contract Escrow is ReentrancyGuard {
     }
     
     function getEntryIndex(address releaser, address payer, address receiver) internal view returns (uint256, bool) {
-        bytes32 hashKey = keccak256(abi.encodePacked(payer, receiver));
         Entry[] storage entryArray = entries[releaser]; 
+        
         uint storageIndex = 0;
         bool exists = false;
+        bytes32 hashKey = keccak256(abi.encodePacked(payer, receiver));
         
         for(uint n=0; n<entryArray.length; n++) {
             if (hashKey == entryArray[n].hashKey) {
+                storageIndex = n;
                 exists = true;
                 break;
             }
