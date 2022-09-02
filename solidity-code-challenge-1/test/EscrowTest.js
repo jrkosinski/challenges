@@ -35,8 +35,7 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             const amount = 100; 
             await expect(contract.depositFor(receiver.address, releaser.address, {value:amount})).to.not.be.reverted;
             
-            const entry = await contract.entries(releaser.address);
-            expect(entry.paidOut).to.equal(false);
+            const entry = await contract.getEntry(payer.address, receiver.address, releaser.address);
             expect(entry.amount).to.equal(amount); 
             expect(entry.payer).to.equal(payer.address);
             expect(entry.receiver).to.equal(receiver.address);
@@ -64,14 +63,13 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             await expect(contract.connect(releaser).release()).to.not.be.reverted;
         });
 
-        it("release sets paidOut to true", async function () {
+        it("release removes the entry", async function () {
             const amount = 100;
             await contract.depositFor(receiver.address, releaser.address, { value: amount });
             await contract.connect(releaser).release();
             
-            const entry = await contract.entries(releaser.address); 
-            expect(entry.paidOut).to.equal(true);
-            expect(entry.amount).to.equal(amount); 
+            const entry = await contract.getEntry(payer.address, receiver.address, releaser.address);
+            expect(entry.amount).to.equal(0); 
         });
     });
 });
