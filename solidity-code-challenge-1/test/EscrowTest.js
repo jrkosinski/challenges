@@ -31,11 +31,11 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             const amount = 100; 
             await expect(contract.depositFor(receiver.address, releaser.address, {value:amount})).to.not.be.reverted;
             
-            const entry = await contract.getEntry(payer.address, receiver.address, releaser.address);
-            expect(entry.amount).to.equal(amount); 
-            expect(entry.payer).to.equal(payer.address);
-            expect(entry.receiver).to.equal(receiver.address);
-            expect(entry.releaser).to.equal(releaser.address); 
+            const deposit = await contract.getDeposit(payer.address, receiver.address, releaser.address);
+            expect(deposit.amount).to.equal(amount); 
+            expect(deposit.payer).to.equal(payer.address);
+            expect(deposit.receiver).to.equal(receiver.address);
+            expect(deposit.releaser).to.equal(releaser.address); 
         });
 
         it("can add multiple entries with different releasers", async function () {
@@ -50,24 +50,24 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             await contract.connect(payer1).depositFor(receiver.address, releaser1.address, { value: amount1 });
             await contract.connect(payer2).depositFor(receiver.address, releaser2.address, { value: amount2 });
 
-            const entry1 = await contract.getEntry(payer1.address, receiver.address, releaser1.address);
-            const entry2 = await contract.getEntry(payer2.address, receiver.address, releaser2.address);
+            const deposit1 = await contract.getDeposit(payer1.address, receiver.address, releaser1.address);
+            const deposit2 = await contract.getDeposit(payer2.address, receiver.address, releaser2.address);
 
             //correct amounts 
-            expect(entry1.amount).to.equal(amount1);
-            expect(entry2.amount).to.equal(amount2);
+            expect(deposit1.amount).to.equal(amount1);
+            expect(deposit2.amount).to.equal(amount2);
 
             //correct payers 
-            expect(entry1.payer).to.equal(payer1.address);
-            expect(entry2.payer).to.equal(payer2.address);
+            expect(deposit1.payer).to.equal(payer1.address);
+            expect(deposit2.payer).to.equal(payer2.address);
 
             //correct receivers 
-            expect(entry1.receiver).to.equal(receiver.address);
-            expect(entry2.receiver).to.equal(receiver.address);
+            expect(deposit1.receiver).to.equal(receiver.address);
+            expect(deposit2.receiver).to.equal(receiver.address);
 
             //correct releasers 
-            expect(entry1.releaser).to.equal(releaser1.address);
-            expect(entry2.releaser).to.equal(releaser2.address);
+            expect(deposit1.releaser).to.equal(releaser1.address);
+            expect(deposit2.releaser).to.equal(releaser2.address);
         });
 
         it("can add multiple entries with same releaser", async function () {
@@ -80,24 +80,24 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             await contract.connect(payer1).depositFor(receiver.address, releaser.address, { value: amount1 });
             await contract.connect(payer2).depositFor(receiver.address, releaser.address, { value: amount2 });
 
-            const entry1 = await contract.getEntry(payer1.address, receiver.address, releaser.address);
-            const entry2 = await contract.getEntry(payer2.address, receiver.address, releaser.address);
+            const deposit1 = await contract.getDeposit(payer1.address, receiver.address, releaser.address);
+            const deposit2 = await contract.getDeposit(payer2.address, receiver.address, releaser.address);
 
             //correct amounts 
-            expect(entry1.amount).to.equal(amount1);
-            expect(entry2.amount).to.equal(amount2);
+            expect(deposit1.amount).to.equal(amount1);
+            expect(deposit2.amount).to.equal(amount2);
 
             //correct payers 
-            expect(entry1.payer).to.equal(payer1.address);
-            expect(entry2.payer).to.equal(payer2.address);
+            expect(deposit1.payer).to.equal(payer1.address);
+            expect(deposit2.payer).to.equal(payer2.address);
 
             //correct receivers 
-            expect(entry1.receiver).to.equal(receiver.address);
-            expect(entry2.receiver).to.equal(receiver.address);
+            expect(deposit1.receiver).to.equal(receiver.address);
+            expect(deposit2.receiver).to.equal(receiver.address);
 
             //correct releasers 
-            expect(entry1.releaser).to.equal(releaser.address);
-            expect(entry2.releaser).to.equal(releaser.address);
+            expect(deposit1.releaser).to.equal(releaser.address);
+            expect(deposit2.releaser).to.equal(releaser.address);
         });
 
         it("cannot add identical entries", async function () {
@@ -107,13 +107,13 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             await contract.depositFor(receiver.address, releaser.address, { value: amount1 });
             await contract.depositFor(receiver.address, releaser.address, { value: amount2 }); 
             
-            //should be one entry, with the full amount 
-            const entry = await contract.getEntry(payer.address, receiver.address, releaser.address);
+            //should be one deposit, with the full amount
+            const deposit = await contract.getDeposit(payer.address, receiver.address, releaser.address);
 
-            expect(entry.amount).to.equal(amount1 + amount2);
-            expect(entry.payer).to.equal(payer.address);
-            expect(entry.receiver).to.equal(receiver.address);
-            expect(entry.releaser).to.equal(releaser.address);
+            expect(deposit.amount).to.equal(amount1 + amount2);
+            expect(deposit.payer).to.equal(payer.address);
+            expect(deposit.receiver).to.equal(receiver.address);
+            expect(deposit.releaser).to.equal(releaser.address);
         });
     });
 
@@ -137,13 +137,13 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             await expect(contract.connect(releaser).release()).to.not.be.reverted;
         });
 
-        it("release removes the entry", async function () {
+        it("release removes the deposit", async function () {
             const amount = 100;
             await contract.depositFor(receiver.address, releaser.address, { value: amount });
             await contract.connect(releaser).release();
             
-            const entry = await contract.getEntry(payer.address, receiver.address, releaser.address);
-            expect(entry.amount).to.equal(0); 
+            const deposit = await contract.getDeposit(payer.address, receiver.address, releaser.address);
+            expect(deposit.amount).to.equal(0); 
         });
     });
 

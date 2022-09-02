@@ -6,7 +6,7 @@ import "hardhat/console.sol";
 
 contract Escrow is ReentrancyGuard {
     
-    struct Entry {
+    struct Deposit {
         bytes32 hashKey;
         address payer; 
         address payable receiver;
@@ -14,84 +14,81 @@ contract Escrow is ReentrancyGuard {
         uint256 amount;
     }
     
-    //TODO: should be mapping of mappings or array 
-    mapping(address => Entry) public _entries;
-    mapping(address => Entry[]) entries;
+    mapping(address => Deposit[]) deposits;
     
     //TODO: comments 
     
     function depositFor(address receiver, address releaser) external payable {
         address payer = msg.sender; 
         
-        //TODO: error msg 
         //releaser should be different from both payer & receiver 
-        require(releaser != receiver && releaser != payer); 
-        require(msg.value > 0);
+        require(releaser != receiver && releaser != payer, "Releaser must be different"); 
+        require(msg.value > 0, "Zero deposit not allowed");
         
-        (uint256 index, bool found) = getEntryIndex(releaser, payer, receiver);
+        (uint256 index, bool found) = getDepositIndex(releaser, payer, receiver);
         
         //if identical entry already exists, add to it
         if (found) {
-            entries[releaser][index].amount += msg.value;
+            deposits[releaser][index].amount += msg.value;
         }
         else { //otherwise, create new one
-            Entry memory newEntry; 
-            newEntry.hashKey = keccak256(abi.encodePacked(payer, receiver));
-            newEntry.payer = payer;
-            newEntry.receiver = payable(receiver);
-            newEntry.releaser = releaser; 
-            newEntry.amount = msg.value;
+            Deposit memory newDeposit; 
+            newDeposit.hashKey = keccak256(abi.encodePacked(payer, receiver));
+            newDeposit.payer = payer;
+            newDeposit.receiver = payable(receiver);
+            newDeposit.releaser = releaser; 
+            newDeposit.amount = msg.value;
             
-            entries[releaser].push(newEntry);
+            deposits[releaser].push(newDeposit);
         }
     }
     
     function release() nonReentrant external {
         address releaser = msg.sender;
-        (uint index, bool found) = getLastUnpaidEntryIndex(releaser);
+        (uint index, bool found) = getLastUnpaidDepositIndex(releaser);
         
         //checks: make sure entry exists 
-        require(found); 
+        require(found, "Escrow deposit not found"); 
         
-        Entry storage entry = entries[releaser][index]; 
+        Deposit storage dep = deposits[releaser][index]; 
         
         //effects: remove the entry
-        entries[releaser].pop();
+        deposits[releaser].pop();
         
         //interactions: send the ether to receiver 
-        (bool sent,) = entry.receiver.call{value:entry.amount}("");
+        (bool sent,) = dep.receiver.call{value:dep.amount}("");
         require(sent); 
     }
     
-    function getEntry(address payer, address receiver, address releaser) external view returns (Entry memory entry) {
-        (uint index, bool found) = getEntryIndex(releaser, payer, receiver);
+    function getDeposit(address payer, address receiver, address releaser) external view returns (Deposit memory deposit) {
+        (uint index, bool found) = getDepositIndex(releaser, payer, receiver);
         if (found) {
-            entry = entries[releaser][index]; 
+            deposit = deposits[releaser][index]; 
         }
         
-        return entry;
+        return deposit;
     }
     
-    function getLastUnpaidEntryIndex(address releaser) internal view returns (uint256, bool) {
-        Entry[] storage entryArray = entries[releaser]; 
+    function getLastUnpaidDepositIndex(address releaser) internal view returns (uint256, bool) {
+        Deposit[] storage depArray = deposits[releaser]; 
         uint storageIndex = 0;
-        bool exists = entryArray.length > 0; 
+        bool exists = depArray.length > 0; 
         if (exists) {
-            storageIndex = entryArray.length-1;
+            storageIndex = depArray.length-1;
         }
         
         return (storageIndex, exists);
     }
     
-    function getEntryIndex(address releaser, address payer, address receiver) internal view returns (uint256, bool) {
-        Entry[] storage entryArray = entries[releaser]; 
+    function getDepositIndex(address releaser, address payer, address receiver) internal view returns (uint256, bool) {
+        Deposit[] storage depArray = deposits[releaser]; 
         
         uint storageIndex = 0;
         bool exists = false;
         bytes32 hashKey = keccak256(abi.encodePacked(payer, receiver));
         
-        for(uint n=0; n<entryArray.length; n++) {
-            if (hashKey == entryArray[n].hashKey) {
+        for(uint n=0; n<depArray.length; n++) {
+            if (hashKey == depArray[n].hashKey) {
                 storageIndex = n;
                 exists = true;
                 break;
