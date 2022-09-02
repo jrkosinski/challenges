@@ -4,6 +4,7 @@ const constants = require("./util/constants");
 const deploy = require("./util/deploy");
 const testEvent = require("./util/testEvent");
 
+const provider = ethers.provider;
 
 describe(constants.CONTRACT_NAME + ": Test", function () {		  
 	let contract;				                    //contracts
@@ -36,6 +37,8 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             expect(deposit.payer).to.equal(payer.address);
             expect(deposit.receiver).to.equal(receiver.address);
             expect(deposit.releaser).to.equal(releaser.address); 
+            
+            expect(await provider.getBalance(contract.address)).to.equal(amount);
         });
 
         it("can add multiple entries with different releasers", async function () {
@@ -68,6 +71,8 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             //correct releasers 
             expect(deposit1.releaser).to.equal(releaser1.address);
             expect(deposit2.releaser).to.equal(releaser2.address);
+
+            expect(await provider.getBalance(contract.address)).to.equal(amount1 + amount2);
         });
 
         it("can add multiple entries with same releaser", async function () {
@@ -98,6 +103,8 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             //correct releasers 
             expect(deposit1.releaser).to.equal(releaser.address);
             expect(deposit2.releaser).to.equal(releaser.address);
+
+            expect(await provider.getBalance(contract.address)).to.equal(amount1 + amount2);
         });
 
         it("cannot add identical entries", async function () {
@@ -135,6 +142,8 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
         it("releaser can release", async function () {
             await contract.depositFor(receiver.address, releaser.address, { value: 1 });
             await expect(contract.connect(releaser).release()).to.not.be.reverted;
+
+            expect(await provider.getBalance(contract.address)).to.equal(0);
         });
 
         it("release removes the deposit", async function () {
@@ -144,6 +153,16 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             
             const deposit = await contract.getDeposit(payer.address, receiver.address, releaser.address);
             expect(deposit.amount).to.equal(0); 
+            
+            expect(await provider.getBalance(contract.address)).to.equal(0);
+        });
+
+        it("release reverts if unable to be received", async function () {
+            const unpayable = await deploy.deployUnpayable();
+            
+            await contract.depositFor(unpayable.address, releaser.address, { value: 1 });
+            
+            await expect(contract.connect(releaser).release()).to.be.reverted;
         });
     });
 });

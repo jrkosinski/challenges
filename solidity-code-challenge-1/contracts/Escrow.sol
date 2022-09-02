@@ -6,14 +6,16 @@ import "hardhat/console.sol";
 
 contract Escrow is ReentrancyGuard {
     
+    // a deposit record 
     struct Deposit {
-        bytes32 hashKey;
-        address payer; 
-        address payable receiver;
-        address releaser;
-        uint256 amount;
+        bytes32 hashKey;            //hash of payer & receiver; makes it unique per releaser
+        address payer;              //address of payer of deposit
+        address payable receiver;   //address which can receive the deposit
+        address releaser;           //address which can release the deposit to receiver
+        uint256 amount;             //total amount of deposit 
     }
     
+    //list of deposits per releaser 
     mapping(address => Deposit[]) deposits;
     
     
