@@ -6,16 +6,54 @@ const testEvent = require("./util/testEvent");
 
 
 describe(constants.CONTRACT_NAME + ": Test", function () {		  
-	let contract;				    //contracts
-	let owner, addr1, addr2; 	    //accounts
+	let contract;				                    //contracts
+	let payer, receiver, releaser, addr4, addr5; 	//accounts
 	
 	beforeEach(async function () {
-		[owner, addr1, addr2,...addrs] = await ethers.getSigners();
+        [payer, receiver, releaser, addr4, addr5, ...addrs] = await ethers.getSigners();
         
         //contract
         contract = await deploy.deployContract();
 	});
 	
 	describe("Initial State", function () {
-    });  
+        
+    });
+
+    describe("Deposit", function () {
+        it("releaser must be different from both sender & payee", async function() {
+            await expect(contract.depositFor({ value: 1 }, payer.addresss, payer.address)).to.be.reverted;
+            await expect(contract.depositFor({ value: 1 }, payer.addresss, releaser.address)).to.be.reverted;
+            await expect(contract.depositFor({ value: 1 }, receiver.addresss, payer.address)).to.be.reverted;
+        });
+        
+        it("amount must be > 0", async function () {
+            await expect(contract.depositFor(receiver.addresss, releaser.address)).to.be.reverted;
+        });
+
+        it("can deposit nonzero amount", async function () {
+            await expect(contract.depositFor(receiver.address, releaser.address, {value:1})).to.not.be.reverted;
+        });
+    });
+
+    describe("Release", function () {
+        it("cannot release if no deposit", async function () {
+            await expect(contract.release()).to.be.reverted;
+        });
+
+        it("payer cannot release", async function () {
+            await contract.depositFor(receiver.address, releaser.address, { value: 1 }); 
+            await expect(contract.release()).to.be.reverted;
+        });
+
+        it("receiver cannot release", async function () {
+            await contract.depositFor(receiver.address, releaser.address, { value: 1 });
+            await expect(contract.connect(receiver).release()).to.be.reverted;
+        });
+
+        it("releaser can release", async function () {
+            await contract.depositFor(receiver.address, releaser.address, { value: 1 });
+            await expect(contract.connect(releaser).release()).to.not.be.reverted;
+        });
+    });
 });
