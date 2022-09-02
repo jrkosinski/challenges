@@ -18,13 +18,13 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
 
     describe("Deposit", function () {
         it("releaser must be different from both sender & payee", async function() {
-            await expect(contract.depositFor({ value: 1 }, payer.addresss, payer.address)).to.be.reverted;
-            await expect(contract.depositFor({ value: 1 }, payer.addresss, releaser.address)).to.be.reverted;
-            await expect(contract.depositFor({ value: 1 }, receiver.addresss, payer.address)).to.be.reverted;
+            await expect(contract.depositFor(payer.address, payer.address, { value:1 })).to.be.revertedWith(constants.errorMessages.RELEASER_SAME);
+            await expect(contract.depositFor(receiver.address, payer.address, { value: 1 })).to.be.revertedWith(constants.errorMessages.RELEASER_SAME);
+            await expect(contract.depositFor(receiver.address, receiver.address, { value: 1 })).to.be.revertedWith(constants.errorMessages.RELEASER_SAME);
         });
         
         it("amount must be > 0", async function () {
-            await expect(contract.depositFor(receiver.addresss, releaser.address)).to.be.reverted;
+            await expect(contract.depositFor(receiver.address, releaser.address, { value: 0 })).to.be.revertedWith(constants.errorMessages.EMPTY_DEPOSIT);
         });
 
         it("can deposit nonzero amount", async function () {
@@ -119,17 +119,17 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
 
     describe("Release", function () {
         it("cannot release if no deposit", async function () {
-            await expect(contract.release()).to.be.reverted;
+            await expect(contract.release()).to.be.revertedWith(constants.errorMessages.NOT_FOUND);
         });
 
         it("payer cannot release", async function () {
             await contract.depositFor(receiver.address, releaser.address, { value: 1 }); 
-            await expect(contract.release()).to.be.reverted;
+            await expect(contract.release()).to.be.revertedWith(constants.errorMessages.NOT_FOUND);
         });
 
         it("receiver cannot release", async function () {
             await contract.depositFor(receiver.address, releaser.address, { value: 1 });
-            await expect(contract.connect(receiver).release()).to.be.reverted;
+            await expect(contract.connect(receiver).release()).to.be.revertedWith(constants.errorMessages.NOT_FOUND);
         });
 
         it("releaser can release", async function () {
@@ -146,8 +146,4 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             expect(deposit.amount).to.equal(0); 
         });
     });
-
-    describe("Integration", function () {
-
-    }); 
 });
