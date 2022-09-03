@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
+
 //TODO: add events 
 
 /** 
@@ -16,6 +17,8 @@ contract EthPool is Ownable {
     string constant errorUnauthorized = "Unauthorized";
     string constant errorMinTeamSize = "Min team size is 2";
     string constant errorExceedWithdraw = "Exceeded withdraw limit"; 
+    
+    uint8 constant calcPrecision = 6;
     
     struct MemberData {
         uint256 stake;
@@ -85,8 +88,10 @@ contract EthPool is Ownable {
         //determine share per member 
         for(uint n=0; n<pool.members.length; n++) {
             MemberData storage member = pool.memberData[pool.members[n]]; 
-            uint share = member.stake / pool.totalStake;
-            member.rewardShare = (share * pool.totalReward); 
+            (uint sharePct,,) = XisWhatPercentageOfY(member.stake, pool.totalStake, calcPrecision); 
+            (uint rewardShare,,) = whatIsXPercentOfY(sharePct, (pool.totalReward), 1); 
+            
+            member.rewardShare = rewardShare / 10**(calcPrecision-1); 
         }
     }
     
@@ -104,6 +109,21 @@ contract EthPool is Ownable {
         require(sent);
     }
     
+    function XisWhatPercentageOfY(uint x, uint y, uint8 precision) public pure returns (uint256 result, uint256 whole, uint256 decimal) {
+        require(precision >= 1);
+        uint multiplier = 10**(precision-1); 
+        result = ((x * multiplier) / y * 100); 
+        whole = result / multiplier; 
+        decimal = result - (whole * multiplier); 
+    }
+    
+    function whatIsXPercentOfY(uint x, uint y, uint8 precision) public pure returns (uint256 result, uint256 whole, uint256 decimal) {
+        require(precision >= 1);
+        uint multiplier = 10**(precision-1); 
+        result = (x * multiplier)/100 * y; 
+        whole = result/multiplier; 
+        decimal = result - (whole * multiplier);
+    }
     
     //- - - - - - - NON-PUBLIC METHODS - - - - - - -
     

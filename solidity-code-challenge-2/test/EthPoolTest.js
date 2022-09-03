@@ -222,17 +222,57 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
         });
     });
 
-    describe("getting rewards", async function () {
-        it("team member can get a reward of 100%", async function () {
+    describe.only("calculating rewards", async function () {
+        beforeEach(async function () {
+            await contract.createTeam(team1.address, [member1_1.address, member1_2.address, member1_3.address]);
+            await contract.createTeam(team2.address, [member2_1.address, member2_2.address, member2_3.address]);
+        });
 
+        it("single team member can get a reward of 100%", async function () {
+            const stake = 100;
+            const reward = 1150;
+
+            await contract.connect(member1_1).stake({ value: stake });
+            await contract.connect(team1).postRewards({value: reward}); 
+            
+            expect(await contract.getRewardShare(member1_1.address)).to.equal(reward);
+            expect(await contract.getWithdrawLimit(member1_1.address)).to.equal(reward + stake);
         });
 
         it("two team members can share reward", async function () {
+            const stake1 = 100;
+            const stake2 = 101;
+            const reward = 1150;
+            const rewardShare1 = 572;
+            const rewardShare2 = 577;
 
+            await contract.connect(member1_1).stake({ value: stake1 });
+            await contract.connect(member1_2).stake({ value: stake2 });
+            await contract.connect(team1).postRewards({ value: reward });
+
+            expect(await contract.getRewardShare(member1_1.address)).to.equal(rewardShare1);
+            expect(await contract.getWithdrawLimit(member1_1.address)).to.equal(rewardShare1 + stake1);
+
+            expect(await contract.getRewardShare(member1_2.address)).to.equal(rewardShare2);
+            expect(await contract.getWithdrawLimit(member1_2.address)).to.equal(rewardShare2 + stake2);
         });
 
         it("late staker misses out on reward", async function () {
+            const stake1 = 100;
+            const stake2 = 101;
+            const reward = 1150;
+            const rewardShare1 = reward;
+            const rewardShare2 = 0;
 
+            await contract.connect(member1_1).stake({ value: stake1 });
+            await contract.connect(team1).postRewards({ value: reward });
+            await contract.connect(member1_2).stake({ value: stake2 });
+
+            expect(await contract.getRewardShare(member1_1.address)).to.equal(rewardShare1);
+            expect(await contract.getWithdrawLimit(member1_1.address)).to.equal(rewardShare1 + stake1);
+
+            expect(await contract.getRewardShare(member1_2.address)).to.equal(rewardShare2);
+            expect(await contract.getWithdrawLimit(member1_2.address)).to.equal(rewardShare2 + stake2);
         });
 
         it("late staker misses out on reward but gets the next one", async function () {
@@ -241,6 +281,54 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
 
         it("rewards are shared correctly between multiple stakers", async function () {
 
+        });
+    });
+
+    describe("percentage basis", async function () {
+        it("x is what percent of y", async function () {
+            let response;
+            response = await contract.XisWhatPercentageOfY(20, 40, 3);
+            expect(response.result).to.equal(50000); 
+            expect(response.whole).to.equal(50);
+            expect(response.decimal).to.equal(0); 
+
+            response = await contract.XisWhatPercentageOfY(30, 40, 3);
+            expect(response.result).to.equal(75000); 
+            expect(response.whole).to.equal(75);
+            expect(response.decimal).to.equal(0); 
+
+            response = await contract.XisWhatPercentageOfY(20, 50, 3);
+            expect(response.result).to.equal(40000); 
+            expect(response.whole).to.equal(40);
+            expect(response.decimal).to.equal(0); 
+
+            response = await contract.XisWhatPercentageOfY(25, 40, 3);
+            expect(response.result).to.equal(62500); 
+            expect(response.whole).to.equal(62); 
+            expect(response.decimal).to.equal(500); 
+        });
+        
+        it("what is x percent of y", async function () {
+            let response;
+            response = await contract.XisWhatPercentageOfY(5, 100, 3);
+            expect(response.result).to.equal(5000);
+            expect(response.whole).to.equal(5);
+            expect(response.decimal).to.equal(0); 
+
+            response = await contract.XisWhatPercentageOfY(5, 200, 3);
+            expect(response.result).to.equal(2500);
+            expect(response.whole).to.equal(2);
+            expect(response.decimal).to.equal(500); 
+
+            response = await contract.XisWhatPercentageOfY(5, 40, 3);
+            expect(response.result).to.equal(12500);
+            expect(response.whole).to.equal(12);
+            expect(response.decimal).to.equal(500); 
+
+            response = await contract.XisWhatPercentageOfY(29, 30, 3);
+            expect(response.result).to.equal(96600);
+            expect(response.whole).to.equal(96);
+            expect(response.decimal).to.equal(600); 
         });
     });
 });
