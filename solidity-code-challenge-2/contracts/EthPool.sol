@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./PercentageBasis.sol";
 import "hardhat/console.sol";
 
-//TODO: allow team to skim the pot 
+//TODO: come up with a way to handle rounding errors 
 
 /** 
  * @title EthPool
@@ -25,6 +25,9 @@ contract EthPool is Ownable {
     
     //precision for divvying up currency rewards 
     uint8 constant calcPrecision = 6;
+    
+    //the difference between the total of all pools, and what's actually in the contract
+    uint256 roundingErrors = 0;
     
     //team member 
     struct MemberData {
@@ -139,13 +142,22 @@ contract EthPool is Ownable {
         pool.totalReward += amount;
         
         //determine share per member 
+        uint totalIncrease = 0;
         for(uint n=0; n<pool.members.length; n++) {
             MemberData storage member = pool.memberData[pool.members[n]]; 
             (uint sharePct,,) = PercentageBasis.XisWhatPercentageOfY(member.stake, pool.totalStake, calcPrecision); 
             (uint rewardShare,,) = PercentageBasis.whatIsXPercentOfY(sharePct, amount, 1); 
             
-            member.stake += rewardShare / 10**(calcPrecision-1); 
+            //console.log("%d is %d percent of %d", member.stake, sharePct / 10**(calcPrecision-1), pool.totalStake);
+            //.log("%d is %d percent of %d", rewardShare / 10**(calcPrecision-1), sharePct / 10**(calcPrecision-1), amount);
+            
+            uint amountIncrease = rewardShare / 10**(calcPrecision-1);
+            member.stake += amountIncrease; 
+            totalIncrease += amountIncrease;
         }
+        
+        //recalculate total stake 
+        pool.totalStake += totalIncrease;
         
         emit RewardPosted(_team, amount);
     }
@@ -173,7 +185,4 @@ contract EthPool is Ownable {
         
         emit MemberWithdraw(_team, _member, amount);
     }
-    
-    //- - - - - - - NON-PUBLIC METHODS - - - - - - -
-    
 }

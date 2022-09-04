@@ -121,7 +121,9 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
         it("team can post rewards", async function () {
             const amount = 1000; 
             await contract.connect(team1).postRewards({value:amount}); 
+            
             expect(await contract.getPoolRewards(team1.address)).to.equal(amount); 
+            expect(await provider.getBalance(contract.address)).to.equal(amount);
         });
 
         it("non-team cannot post rewards", async function () {
@@ -138,7 +140,9 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             expect(await contract.getPoolRewards(team1.address)).to.equal(amount1);
 
             await contract.connect(team1).postRewards({ value: amount2 });
+            
             expect(await contract.getPoolRewards(team1.address)).to.equal(amount1 + amount2);
+            expect(await provider.getBalance(contract.address)).to.equal(amount1 + amount2);
         });
         
         it("member withdraw limit after rewards posted", async function () {
@@ -152,6 +156,7 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             
             expect(await contract.getMemberStake(member1_1.address)).to.equal(stake1 + reward);
             expect(await contract.getMemberStake(member1_2.address)).to.equal(stake2);
+            expect(await provider.getBalance(contract.address)).to.equal(stake1 + stake2 + reward);
         });
     });
 
@@ -169,13 +174,17 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
         it("team member can stake and withdraw full stake", async function () {
             const amount = 100; 
             
+            //stake 
             await contract.connect(member1_2).stake({ value: amount });
             expect(await contract.getMemberStake(member1_2.address)).to.equal(amount);
             expect(await contract.getPoolStake(team1.address)).to.equal(amount);
+            expect(await provider.getBalance(contract.address)).to.equal(amount);
             
+            //withdraw
             await contract.connect(member1_2).withdraw(amount);
             expect(await contract.getMemberStake(member1_2.address)).to.equal(0);
             expect(await contract.getPoolStake(team1.address)).to.equal(0);
+            expect(await provider.getBalance(contract.address)).to.equal(0);
         });
 
         it("team member cannot withdraw more than they stake", async function () {
@@ -184,6 +193,7 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             await contract.connect(member1_1).stake({ value: amount });
             expect(await contract.getMemberStake(member1_1.address)).to.equal(amount);
             expect(await contract.getPoolStake(team1.address)).to.equal(amount);
+            expect(await provider.getBalance(contract.address)).to.equal(amount);
 
             await expect(
                 contract.connect(member1_1).withdraw(amount+1)
@@ -196,10 +206,12 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             await contract.connect(member1_1).stake({ value: amount });
             expect(await contract.getMemberStake(member1_1.address)).to.equal(amount);
             expect(await contract.getPoolStake(team1.address)).to.equal(amount);
+            expect(await provider.getBalance(contract.address)).to.equal(amount);
 
             await contract.connect(member1_1).withdraw(amount / 2);
             expect(await contract.getMemberStake(member1_1.address)).to.equal(amount / 2);
-            expect(await contract.getPoolStake(team1.address)).to.equal(amount/2);
+            expect(await contract.getPoolStake(team1.address)).to.equal(amount / 2);
+            expect(await provider.getBalance(contract.address)).to.equal(amount / 2);
         });
 
         it("team member can only withdraw their own stake", async function () {
@@ -232,7 +244,7 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             await unpayable.stakeTo(contract.address, {value:amount}); 
             await expect(unpayable.withdrawFrom(contract.address, amount)).to.be.reverted;
         });
-    })
+    });
 
     describe("calculating rewards", async function () {
         beforeEach(async function () {
@@ -377,6 +389,54 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
                 "MemberWithdrawal",
                 [team1.address, member1_1.adddress, withdrawal]
             ); 
+        });
+    });
+
+    describe("complex scenarios", async function () {
+        beforeEach(async function () {
+            await createTeams();
+        });
+
+        it("scenario 1", async function () {
+            const stake1 = 110;
+            const stake2 = 113;
+            const reward1 = 229;
+            const reward2 = 440; 
+            const withdrawal1 = 100;
+
+            //two members stake some amount 
+            await contract.connect(member1_1).stake({ value: stake1 });
+            await contract.connect(member1_2).stake({ value: stake2 });
+            console.log(await contract.getMemberStake(member1_1.address));
+            console.log(await contract.getMemberStake(member1_2.address));
+            console.log(await provider.getBalance(contract.address));
+            console.log();
+            
+            //they each get a share of the first awards 
+            await(contract.connect(team1).postRewards({value:reward1})); 
+            expect(await provider.getBalance(contract.address)).to.equal(stake1+stake2+reward1);
+
+            console.log(await contract.getMemberStake(member1_1.address));
+            console.log(await contract.getMemberStake(member1_2.address));
+            console.log(await provider.getBalance(contract.address));
+            console.log();
+            
+            //one withdraws most of his share
+            await contract.connect(member1_1).withdraw(withdrawal1);
+            expect(await provider.getBalance(contract.address)).to.equal(stake1 + stake2 + reward1 - withdrawal1);
+            expect(await contract.getMemberStake(member1_1.address)).to.equal(stake1 - withdrawal1 + 112); 
+
+            console.log(await contract.getMemberStake(member1_1.address));
+            console.log(await contract.getMemberStake(member1_2.address));
+            console.log(await provider.getBalance(contract.address));
+            console.log();
+            
+            //another reward is posted
+            await contract.connect(team1).postRewards({ value: reward2 });
+            console.log(await contract.getMemberStake(member1_1.address));
+            console.log(await contract.getMemberStake(member1_2.address));
+            console.log(await provider.getBalance(contract.address));
+            console.log();
         });
     });
 });
