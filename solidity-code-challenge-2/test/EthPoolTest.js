@@ -11,6 +11,11 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
     let owner, team1, team2, 
         member1_1, member1_2, member1_3, 
         member2_1, member2_2, member2_3; 	//accounts
+        
+    async function createTeams() {
+        await contract.createTeam(team1.address, [member1_1.address, member1_2.address, member1_3.address]);
+        await contract.createTeam(team2.address, [member2_1.address, member2_2.address, member2_3.address]); 
+    }
 	
 	beforeEach(async function () {
         [
@@ -58,8 +63,7 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
 
     describe("member staking", async function () {
         beforeEach(async function () {
-            await contract.createTeam(team1.address, [member1_1.address, member1_2.address, member1_3.address]);
-            await contract.createTeam(team2.address, [member2_1.address, member2_2.address, member2_3.address]); 
+            await createTeams();
         });
         
         it("non-member of team cannot stake", async function () {
@@ -101,8 +105,7 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
 
     describe("posting rewards", async function () {
         beforeEach(async function () {
-            await contract.createTeam(team1.address, [member1_1.address, member1_2.address, member1_3.address]);
-            await contract.createTeam(team2.address, [member2_1.address, member2_2.address, member2_3.address]);
+            await createTeams();
         });
 
         it("team can post rewards", async function () {
@@ -145,8 +148,7 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
     //TODO: test what happens when receiver refuses payment
     describe("withdrawing stake", async function () {
         beforeEach(async function () {
-            await contract.createTeam(team1.address, [member1_1.address, member1_2.address, member1_3.address]);
-            await contract.createTeam(team2.address, [member2_1.address, member2_2.address, member2_3.address]);
+            await createTeams();
         });
 
         it("non-member cannot withdraw", async function () {
@@ -207,11 +209,25 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             ).to.be.revertedWith(constants.errorMessages.WITHDRAW_LIMIT_EXCEEDED); 
         });
     });
+    
+    describe.only("refuse payment", async function() {
+        let unpayable;
+        this.beforeEach(async function () {
+            unpayable = await deploy.deployUnpayable();
+            await contract.createTeam(team1.address, [unpayable.address, member1_2.address, member1_3.address]);
+        });
+
+        it("payment reverts if receiver refuses payment", async function () {
+            const amount = 100;
+
+            await unpayable.stakeTo(contract.address, {value:amount}); 
+            await expect(unpayable.withdrawFrom(contract.address, amount)).to.be.reverted;
+        });
+    })
 
     describe("calculating rewards", async function () {
         beforeEach(async function () {
-            await contract.createTeam(team1.address, [member1_1.address, member1_2.address, member1_3.address]);
-            await contract.createTeam(team2.address, [member2_1.address, member2_2.address, member2_3.address]);
+            await createTeams();
         });
 
         it("single team member can get a reward of 100%", async function () {
@@ -320,9 +336,8 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
     });
 
     describe("events", async function () {
-        beforeEach(async function () { //TODO: make this a separate function 
-            await contract.createTeam(team1.address, [member1_1.address, member1_2.address, member1_3.address]);
-            await contract.createTeam(team2.address, [member2_1.address, member2_2.address, member2_3.address]);
+        beforeEach(async function () {
+            await createTeams();
         });
 
         it("MemberStaked event fires upon stake", async function () {

@@ -15,5 +15,9 @@ module.exports = {
     
     deployLibrary: async () => {
         return await utils.deployContractSilent("PercentageBasis");
+    }, 
+    
+    deployUnpayable: async () => {
+        return await utils.deployContractSilent("Unpayable");
     }
 };
