@@ -4,8 +4,6 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
-
-//TODO: add events 
 //TODO: allow conversion from reward to stake 
 //TODO: allow team to skim the pot 
 
@@ -42,9 +40,20 @@ contract EthPool is Ownable {
     }
     
     //events 
-    event MemberStaked(address team, address member, uint256 amount); 
-    event RewardPosted(address team, uint256 amount); 
-    event MemberWithdraw(address team, address member, uint256 amount); 
+    event MemberStaked(
+        address team, 
+        address member, 
+        uint256 amount
+    ); 
+    event RewardPosted(
+        address team, 
+        uint256 amount
+    ); 
+    event MemberWithdraw(
+        address team, 
+        address member, 
+        uint256 amount
+    ); 
     
     /**
      * @dev Creates a new unique team with preassigned members. 
@@ -57,7 +66,7 @@ contract EthPool is Ownable {
         require(members.length >= 2, errorMinTeamSize);
         
         //TODO: require that team pool doesn't already exist 
-        //TODO: require menbers to be unique 
+        //TODO: require members to be unique 
         
         teamPools[_team].totalStake = 0; 
         teamPools[_team].totalReward = 0; 
@@ -74,12 +83,17 @@ contract EthPool is Ownable {
      */
     function stake() external payable {
         address _team = membersToTeams[msg.sender]; 
+        address _member = msg.sender;
+        uint amount = msg.value;
+        
         require(_team != address(0), errorUnauthorized); 
         
-        teamPools[_team].memberData[msg.sender].stake += msg.value;
-        teamPools[_team].totalStake += msg.value;
+        teamPools[_team].memberData[_member].stake += amount;
+        teamPools[_team].totalStake += amount;
         
-        assert(teamPools[_team].memberData[msg.sender].stake <= teamPools[_team].totalStake );
+        assert(teamPools[_team].memberData[_member].stake <= teamPools[_team].totalStake );
+        
+        emit MemberStaked(_team, _member, amount);
     }
     
     /**
@@ -141,10 +155,12 @@ contract EthPool is Ownable {
      */
     function postRewards() external payable {
         address _team = msg.sender;
+        uint amount = msg.value; 
+        
         TeamPool storage pool = teamPools[_team]; 
         require(pool.members.length > 0, errorUnauthorized); //ensure pool exists
         
-        pool.totalReward += msg.value;
+        pool.totalReward += amount;
         
         //determine share per member 
         for(uint n=0; n<pool.members.length; n++) {
@@ -154,6 +170,8 @@ contract EthPool is Ownable {
             
             member.rewardShare = rewardShare / 10**(calcPrecision-1); 
         }
+        
+        emit RewardPosted(_team, amount);
     }
     
     /**
@@ -163,21 +181,29 @@ contract EthPool is Ownable {
      * @param amount the amount to withdraw. 
      */
     function withdraw(uint256 amount) external {
-        address _team = membersToTeams[msg.sender]; 
-        require(_team != address(0), errorUnauthorized); 
-        require(teamPools[_team].memberData[msg.sender].stake >= amount, errorExceedWithdraw); 
+        address _member = msg.sender;
+        address _team = membersToTeams[_member]; 
         
-        teamPools[_team].memberData[msg.sender].stake -= amount;
+        require(_team != address(0), errorUnauthorized); 
+        require(teamPools[_team].memberData[_member].stake >= amount, errorExceedWithdraw); 
+        
+        teamPools[_team].memberData[_member].stake -= amount;
         teamPools[_team].totalStake -= amount;
         
-        assert(teamPools[_team].memberData[msg.sender].stake <= teamPools[_team].totalStake);
+        assert(teamPools[_team].memberData[_member].stake <= teamPools[_team].totalStake);
         
-        (bool sent,) = payable(msg.sender).call{value:amount}("");
+        (bool sent,) = payable(_member).call{value:amount}("");
         require(sent);
+        
+        emit MemberWithdraw(_team, _member, amount);
     }
     
     function XisWhatPercentageOfY(uint x, uint y, uint8 precision) public pure returns (uint256 result, uint256 whole, uint256 decimal) {
         require(precision >= 1);
+        
+        if (y == 0) 
+            return (0, 0, 0);
+            
         uint multiplier = 10**(precision-1); 
         result = ((x * multiplier) / y * 100); 
         whole = result / multiplier; 
@@ -186,6 +212,10 @@ contract EthPool is Ownable {
     
     function whatIsXPercentOfY(uint x, uint y, uint8 precision) public pure returns (uint256 result, uint256 whole, uint256 decimal) {
         require(precision >= 1);
+        
+        if (y == 0) 
+            return (0, 0, 0);
+            
         uint multiplier = 10**(precision-1); 
         result = (x * multiplier)/100 * y; 
         whole = result/multiplier; 

@@ -137,15 +137,17 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
         
         it("member withdraw limit after rewards posted", async function () {
             const reward = 1000;
-            const stake = 100;
+            const stake1 = 100;
+            const stake2 = 100;
 
+            await contract.connect(member1_1).stake({ value: stake1 });
             await contract.connect(team1).postRewards({ value: reward });
-            await contract.connect(member1_1).stake({ value: stake });
+            await contract.connect(member1_2).stake({ value: stake2 });
             
-            expect(await contract.getMemberStake(member1_1.address)).to.equal(stake);
-            expect(await contract.getWithdrawLimit(member1_1.address)).to.equal(stake + reward);
-            expect(await contract.getWithdrawLimit(member1_2.address)).to.equal(0);
-            expect(await contract.getWithdrawLimit(member2_1.address)).to.equal(0);
+            expect(await contract.getMemberStake(member1_1.address)).to.equal(stake1);
+            expect(await contract.getWithdrawLimit(member1_1.address)).to.equal(stake1 + reward);
+            expect(await contract.getMemberStake(member1_2.address)).to.equal(stake2);
+            expect(await contract.getWithdrawLimit(member1_2.address)).to.equal(stake2);
         });
     });
 
@@ -222,7 +224,7 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
         });
     });
 
-    describe.only("calculating rewards", async function () {
+    describe("calculating rewards", async function () {
         beforeEach(async function () {
             await contract.createTeam(team1.address, [member1_1.address, member1_2.address, member1_3.address]);
             await contract.createTeam(team2.address, [member2_1.address, member2_2.address, member2_3.address]);
@@ -287,22 +289,22 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
     describe("percentage basis", async function () {
         it("x is what percent of y", async function () {
             let response;
-            response = await contract.XisWhatPercentageOfY(20, 40, 3);
+            response = await contract.XisWhatPercentageOfY(20, 40, 4);
             expect(response.result).to.equal(50000); 
             expect(response.whole).to.equal(50);
             expect(response.decimal).to.equal(0); 
 
-            response = await contract.XisWhatPercentageOfY(30, 40, 3);
+            response = await contract.XisWhatPercentageOfY(30, 40, 4);
             expect(response.result).to.equal(75000); 
             expect(response.whole).to.equal(75);
             expect(response.decimal).to.equal(0); 
 
-            response = await contract.XisWhatPercentageOfY(20, 50, 3);
+            response = await contract.XisWhatPercentageOfY(20, 50, 4);
             expect(response.result).to.equal(40000); 
             expect(response.whole).to.equal(40);
             expect(response.decimal).to.equal(0); 
 
-            response = await contract.XisWhatPercentageOfY(25, 40, 3);
+            response = await contract.XisWhatPercentageOfY(25, 40, 4);
             expect(response.result).to.equal(62500); 
             expect(response.whole).to.equal(62); 
             expect(response.decimal).to.equal(500); 
@@ -310,25 +312,62 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
         
         it("what is x percent of y", async function () {
             let response;
-            response = await contract.XisWhatPercentageOfY(5, 100, 3);
+            response = await contract.XisWhatPercentageOfY(5, 100, 4);
             expect(response.result).to.equal(5000);
             expect(response.whole).to.equal(5);
             expect(response.decimal).to.equal(0); 
 
-            response = await contract.XisWhatPercentageOfY(5, 200, 3);
+            response = await contract.XisWhatPercentageOfY(5, 200, 4);
             expect(response.result).to.equal(2500);
             expect(response.whole).to.equal(2);
             expect(response.decimal).to.equal(500); 
 
-            response = await contract.XisWhatPercentageOfY(5, 40, 3);
+            response = await contract.XisWhatPercentageOfY(5, 40, 4);
             expect(response.result).to.equal(12500);
             expect(response.whole).to.equal(12);
             expect(response.decimal).to.equal(500); 
 
-            response = await contract.XisWhatPercentageOfY(29, 30, 3);
+            response = await contract.XisWhatPercentageOfY(29, 30, 4);
             expect(response.result).to.equal(96600);
             expect(response.whole).to.equal(96);
             expect(response.decimal).to.equal(600); 
+        });
+    });
+
+    describe.only("events", async function () {
+        beforeEach(async function () { //TODO: make this a separate function 
+            await contract.createTeam(team1.address, [member1_1.address, member1_2.address, member1_3.address]);
+            await contract.createTeam(team2.address, [member2_1.address, member2_2.address, member2_3.address]);
+        });
+
+        it("MemberStaked event fires upon stake", async function () {
+            const amount = 11;
+            testEvent(
+                await contract.connect(member1_1).stake({ value: amount}), 
+                "MemberStaked", 
+                [team1.address, member1_1.address, amount]
+            ); 
+        });
+
+        it("RewardPosted event fires upon posting reward", async function () {
+            const amount = 1111;
+            testEvent(
+                await contract.connect(team1).postRewards({ value: amount }),
+                "RewardPosted",
+                [team1.address, amount]
+            ); 
+        });
+
+        it("MemberWithdrawal event fires upon member withdrawal", async function () {
+            const stake = 100; 
+            const withdrawal = 75;
+            await contract.connect(member1_1).stake({ value: stake });
+
+            testEvent(
+                await contract.connect(member1_1).withdraw(withdrawal),
+                "MemberWithdrawal",
+                [team1.address, member1_1.adddress, withdrawal]
+            ); 
         });
     });
 });
