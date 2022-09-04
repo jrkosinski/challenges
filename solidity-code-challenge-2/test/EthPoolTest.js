@@ -287,24 +287,30 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
     });
 
     describe("percentage basis", async function () {
+        let percentageBasisLib;
+        
+        beforeEach(async function () {  
+            percentageBasisLib = await deploy.deployLibrary();
+        });
+        
         it("x is what percent of y", async function () {
             let response;
-            response = await contract.XisWhatPercentageOfY(20, 40, 4);
+            response = await percentageBasisLib.XisWhatPercentageOfY(20, 40, 4);
             expect(response.result).to.equal(50000); 
             expect(response.whole).to.equal(50);
             expect(response.decimal).to.equal(0); 
 
-            response = await contract.XisWhatPercentageOfY(30, 40, 4);
+            response = await percentageBasisLib.XisWhatPercentageOfY(30, 40, 4);
             expect(response.result).to.equal(75000); 
             expect(response.whole).to.equal(75);
             expect(response.decimal).to.equal(0); 
 
-            response = await contract.XisWhatPercentageOfY(20, 50, 4);
+            response = await percentageBasisLib.XisWhatPercentageOfY(20, 50, 4);
             expect(response.result).to.equal(40000); 
             expect(response.whole).to.equal(40);
             expect(response.decimal).to.equal(0); 
 
-            response = await contract.XisWhatPercentageOfY(25, 40, 4);
+            response = await percentageBasisLib.XisWhatPercentageOfY(25, 40, 4);
             expect(response.result).to.equal(62500); 
             expect(response.whole).to.equal(62); 
             expect(response.decimal).to.equal(500); 
@@ -312,29 +318,29 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
         
         it("what is x percent of y", async function () {
             let response;
-            response = await contract.XisWhatPercentageOfY(5, 100, 4);
+            response = await percentageBasisLib.XisWhatPercentageOfY(5, 100, 4);
             expect(response.result).to.equal(5000);
             expect(response.whole).to.equal(5);
             expect(response.decimal).to.equal(0); 
 
-            response = await contract.XisWhatPercentageOfY(5, 200, 4);
+            response = await percentageBasisLib.XisWhatPercentageOfY(5, 200, 4);
             expect(response.result).to.equal(2500);
             expect(response.whole).to.equal(2);
             expect(response.decimal).to.equal(500); 
 
-            response = await contract.XisWhatPercentageOfY(5, 40, 4);
+            response = await percentageBasisLib.XisWhatPercentageOfY(5, 40, 4);
             expect(response.result).to.equal(12500);
             expect(response.whole).to.equal(12);
             expect(response.decimal).to.equal(500); 
 
-            response = await contract.XisWhatPercentageOfY(29, 30, 4);
+            response = await percentageBasisLib.XisWhatPercentageOfY(29, 30, 4);
             expect(response.result).to.equal(96600);
             expect(response.whole).to.equal(96);
             expect(response.decimal).to.equal(600); 
         });
     });
 
-    describe.only("events", async function () {
+    describe("events", async function () {
         beforeEach(async function () { //TODO: make this a separate function 
             await contract.createTeam(team1.address, [member1_1.address, member1_2.address, member1_3.address]);
             await contract.createTeam(team2.address, [member2_1.address, member2_2.address, member2_3.address]);
