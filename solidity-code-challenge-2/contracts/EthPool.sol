@@ -107,18 +107,6 @@ contract EthPool is Ownable {
     }
     
     /**
-     * @dev Gets the total amount that the given member has a right to withdraw as of 
-     * the time this method is called; it includes both the member's unclaimed stake 
-     * (if any) plus any share of rewards. 
-     * 
-     * @param _member address of a team member. 
-     * @return uint256 amount of eth that this member can withdraw at this moment.
-     */
-    function getWithdrawLimit(address _member) external view returns (uint256) {
-        return getMemberStake(_member); 
-    }
-    
-    /**
      * @dev Gets the entire stake currently unclaimed for a given team pool. 
      * 
      * @param _team address of a valid team. 
