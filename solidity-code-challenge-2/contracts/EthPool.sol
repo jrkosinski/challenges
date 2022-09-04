@@ -29,7 +29,6 @@ contract EthPool is Ownable {
     //team member 
     struct MemberData {
         uint256 stake;  //how much user has staked cumulatively 
-        uint256 rewardShare; //how much of the reward the user is due 
     }
     
     //one full team 
@@ -116,18 +115,7 @@ contract EthPool is Ownable {
      * @return uint256 amount of eth that this member can withdraw at this moment.
      */
     function getWithdrawLimit(address _member) external view returns (uint256) {
-        return getMemberStake(_member) + getRewardShare(_member); 
-    }
-    
-    /**
-     * @dev Gets the share, represented as a percentage, of the current rewards to which 
-     * the given member is entitled. 
-     * 
-     * @param _member address of a team member. 
-     * @return uint256 the amount of reward currently posted. 
-     */
-    function getRewardShare(address _member) public view returns (uint256) {
-        return teamPools[membersToTeams[_member]].memberData[_member].rewardShare;
+        return getMemberStake(_member); 
     }
     
     /**
@@ -167,9 +155,9 @@ contract EthPool is Ownable {
         for(uint n=0; n<pool.members.length; n++) {
             MemberData storage member = pool.memberData[pool.members[n]]; 
             (uint sharePct,,) = PercentageBasis.XisWhatPercentageOfY(member.stake, pool.totalStake, calcPrecision); 
-            (uint rewardShare,,) = PercentageBasis.whatIsXPercentOfY(sharePct, (pool.totalReward), 1); 
+            (uint rewardShare,,) = PercentageBasis.whatIsXPercentOfY(sharePct, amount, 1); 
             
-            member.rewardShare = rewardShare / 10**(calcPrecision-1); 
+            member.stake += rewardShare / 10**(calcPrecision-1); 
         }
         
         emit RewardPosted(_team, amount);
