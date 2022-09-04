@@ -53,13 +53,23 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
             ).to.be.revertedWith(constants.errorMessages.MIN_TEAM_MEMBERS);
         });
 
+        it("cannot create same team twice", async function () {
+            await expect(
+                contract.createTeam(team1.address, [member1_1.address, member1_2.address])
+            ).to.not.be.reverted;
+            await expect(
+                contract.createTeam(team1.address, [member1_1.address, member1_2.address])
+            ).to.be.revertedWith(constants.errorMessages.DUPLICATE);
+        });
+
         it("team members must be unique", async function () {
-            //TODO: ensure unique
+            await expect(
+                contract.createTeam(team1.address, [member1_1.address, member1_2.address, member1_1.address])
+            ).to.be.revertedWith(constants.errorMessages.DUPLICATE);
         });
     });
     
     //TODO: TEST ALSO CONTRACT & MEMBER BALANCES   
-    //TODO: test withdraw limits 
 
     describe("member staking", async function () {
         beforeEach(async function () {
@@ -145,7 +155,6 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
         });
     });
 
-    //TODO: test what happens when receiver refuses payment
     describe("withdrawing stake", async function () {
         beforeEach(async function () {
             await createTeams();
@@ -210,7 +219,7 @@ describe(constants.CONTRACT_NAME + ": Test", function () {
         });
     });
     
-    describe.only("refuse payment", async function() {
+    describe("refuse payment", async function() {
         let unpayable;
         this.beforeEach(async function () {
             unpayable = await deploy.deployUnpayable();

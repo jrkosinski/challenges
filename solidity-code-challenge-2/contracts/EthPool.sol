@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./PercentageBasis.sol";
 import "hardhat/console.sol";
 
-//TODO: allow conversion from reward to stake 
 //TODO: allow team to skim the pot 
 
 /** 
@@ -22,6 +21,7 @@ contract EthPool is Ownable {
     string constant errorUnauthorized = "Unauthorized";
     string constant errorMinTeamSize = "Min team size is 2";
     string constant errorExceedWithdraw = "Exceeded withdraw limit"; 
+    string constant errorDuplicate = "Duplicate item";
     
     //precision for divvying up currency rewards 
     uint8 constant calcPrecision = 6;
@@ -64,15 +64,14 @@ contract EthPool is Ownable {
     function createTeam(address _team, address[] memory members) external {
         require(msg.sender == owner(), errorUnauthorized); 
         require(members.length >= 2, errorMinTeamSize);
-        
-        //TODO: require that team pool doesn't already exist 
-        //TODO: require members to be unique 
+        require(teamPools[_team].members.length == 0, errorDuplicate);
         
         teamPools[_team].totalStake = 0; 
         teamPools[_team].totalReward = 0; 
         teamPools[_team].members = members;
         
         for(uint n=0; n<members.length; n++) {
+            require (membersToTeams[members[n]] == address(0), errorDuplicate); 
             membersToTeams[members[n]] = _team;
         }
     }

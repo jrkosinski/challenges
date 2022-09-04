@@ -5,6 +5,7 @@ module.exports = {
     errorMessages: {
         UNAUTHORIZED: "Unauthorized",
         MIN_TEAM_MEMBERS: "Min team size is 2",
-        WITHDRAW_LIMIT_EXCEEDED: "Exceeded withdraw limit"
+        WITHDRAW_LIMIT_EXCEEDED: "Exceeded withdraw limit", 
+        DUPLICATE: "Duplicate"
     }
 };
